@@ -20,20 +20,20 @@ public class Main {
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 BufferedWriter out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
 
-                String line = in.readLine(); // e.g. *1
 
+                String line ; // e.g. *1
 
-                if (line == null) {
-                    clientSocket.close();
-                    continue;
-                }
 
                 while((line = in.readLine()) != null){
 
+                    System.out.println(line);
+                    System.out.println(line.trim().startsWith("*"));
+
                     // If the command starts with '*', it’s in RESP format
-                    if (line.startsWith("*")) {
+                    if (line.trim().startsWith("*")) {
                         in.readLine(); // skip $4
                         String command = in.readLine(); // read "PING"
+                        System.out.println("cmd " + command);
 
                         if (command != null && command.trim().equalsIgnoreCase("PING")) {
                             out.write("+PONG\r\n");
