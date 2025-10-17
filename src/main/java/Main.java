@@ -21,34 +21,41 @@ public class Main {
                 BufferedWriter out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
 
                 String line = in.readLine(); // e.g. *1
+
+
                 if (line == null) {
                     clientSocket.close();
                     continue;
                 }
 
-                // If the command starts with '*', it’s in RESP format
-                if (line.startsWith("*")) {
-                    in.readLine(); // skip $4
-                    String command = in.readLine(); // read "PING"
+                while((line = in.readLine()) != null){
 
-                    if (command != null && command.trim().equalsIgnoreCase("PING")) {
+                    // If the command starts with '*', it’s in RESP format
+                    if (line.startsWith("*")) {
+                        in.readLine(); // skip $4
+                        String command = in.readLine(); // read "PING"
+
+                        if (command != null && command.trim().equalsIgnoreCase("PING")) {
+                            out.write("+PONG\r\n");
+                            out.flush();
+                        } else {
+                            out.write("-ERR unknown command\r\n");
+                            out.flush();
+                        }
+                    } else if (line.trim().equalsIgnoreCase("PING")) {
+                        // For plain telnet testing
                         out.write("+PONG\r\n");
                         out.flush();
                     } else {
                         out.write("-ERR unknown command\r\n");
                         out.flush();
                     }
-                } else if (line.trim().equalsIgnoreCase("PING")) {
-                    // For plain telnet testing
-                    out.write("+PONG\r\n");
-                    out.flush();
-                } else {
-                    out.write("-ERR unknown command\r\n");
-                    out.flush();
+
                 }
 
-                clientSocket.close();
+
             }
+
 
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
