@@ -1,12 +1,16 @@
 package utils;
 
+import parser.RESPParser;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 
 public class ClientHandler implements Runnable{
 
     private Socket clientSocket;
+    private RESPParser respParser;
 
     public ClientHandler(Socket socket){
         this.clientSocket = socket;
@@ -16,40 +20,30 @@ public class ClientHandler implements Runnable{
     public void run() {
         try{
 
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
-
+            InputStream input = clientSocket.getInputStream();
+            OutputStream output = clientSocket.getOutputStream();
 
             String line ; // e.g. *1
+            respParser = new RESPParser();
 
+            while (true) {
 
-            while((line = in.readLine()) != null){
+                List<String> command = respParser.parse(input);
 
-//                System.out.println(line);
-//                System.out.println(line.trim().startsWith("*"));
+                if(command == null || command.isEmpty()) break;
 
-                // If the command starts with '*', it’s in RESP format
-                if (line.trim().startsWith("*")) {
-                    in.readLine(); // skip $4
-                    String command = in.readLine(); // read "PING"
-//                    System.out.println("cmd " + command);
+                String response;
 
-                    if (command != null && command.trim().equalsIgnoreCase("PING")) {
-                        out.write("+PONG\r\n");
-                        out.flush();
-                    } else {
-                        out.write("-ERR unknown command\r\n");
-                        out.flush();
-                    }
-                } else if (line.trim().equalsIgnoreCase("PING")) {
-                    // For plain telnet testing
-                    out.write("+PONG\r\n");
-                    out.flush();
-                } else {
-                    out.write("-ERR unknown command\r\n");
-                    out.flush();
+                if(command.get(0).equalsIgnoreCase("PING")){
+                    response = "+PONG\r\n";
+                } else if (command.get(0).equalsIgnoreCase("ECHO")) {
+                    response = "$" + command.get(1).length() + "\r\n" + command.get(1) + "\r\n";
+                }else{
+                    response = "-ERR unknown command\r\n";
                 }
 
+                output.write(response.getBytes());
+                output.flush();
             }
 
         }catch (IOException e) {

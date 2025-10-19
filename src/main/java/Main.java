@@ -21,8 +21,6 @@ public class Main {
 
                 Thread clientTread = new Thread(new ClientHandler(clientSocket));
                 clientTread.start();
-
-
             }
 
 
