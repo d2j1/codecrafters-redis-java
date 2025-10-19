@@ -1,6 +1,7 @@
 package parser;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,73 +56,70 @@ public class RESPParser {
         }
 
         if( b == -1) throw new IOException("Unexpected end of stream while reading line");
-        return buffer.toString();
+        return buffer.toString(StandardCharsets.UTF_8);
 
     }
 
     // bulk string starts with $
     private String parseBulkString(InputStream input) throws IOException {
-
+        // Read the length line (after $)
         String lenline = readLine(input);
         int length = Integer.parseInt(lenline);
 
-        if(length == -1){
-            return null; // null string
-        }
+        if (length == -1) return null; // null string
+
+        if (length < -1) throw new IOException("Invalid bulk string length: " + length);
 
         byte[] buf = new byte[length];
-        int read=0;
+        int read = 0;
 
-        // this will keep reading until EOF
-        while(read < length){
-            int r = input.read( buf, read, length-read);
-            if( r==-1) throw new IOException("Unexpected end of stream while reading bulk string");
+        while (read < length) {
+            int r = input.read(buf, read, length - read);
+            if (r == -1) throw new IOException("Unexpected end of stream while reading bulk string");
             read += r;
         }
 
-        // consume last \r and \n
-
+        // Consume trailing \r\n
         int cr = input.read();
         int lf = input.read();
+        if (cr != '\r' || lf != '\n') throw new IOException("Invalid Bulk String ending");
 
-        if( cr != '\r' || lf != '\n') throw new IOException("Invalid Bulk String ending");
-
-        return new String(buf);
+        return new String(buf, StandardCharsets.UTF_8);
     }
 
     // array starts with *
-    private List<String> parseArray(InputStream input) throws IOException{
-
+    private List<String> parseArray(InputStream input) throws IOException {
+        // Read the count line (after '*')
         String countLine = readLine(input);
         int count = Integer.parseInt(countLine);
 
         List<String> elements = new ArrayList<>();
 
-        for( int i =0; i < count; i++){
+        for (int i = 0; i < count; i++) {
             input.mark(1);
+            int prefixByte = input.read();
+            if (prefixByte == -1) throw new IOException("Unexpected end of stream inside array");
 
-            int next = input.read();
+            char prefix = (char) prefixByte;
 
-            if( next == -1){
-                throw  new IOException("Unexcepted end of stream inside array");
-            }
-
-            char prefix = (char) next;
-
-            switch (prefix){
-                case '$':
+            switch (prefix) {
+                case '$': // Bulk string
                     elements.add(parseBulkString(input));
                     break;
-                case '+':
+
+                case '+': // Simple string reply
                     elements.add(readLine(input));
                     break;
-                case '*':
-                    throw new IOException("Nested arrays are not supported yet!");
+
+                case '*': // Nested arrays (optional for now)
+                    throw new IOException("Nested arrays not supported yet");
+
                 default:
-                    throw new IOException("Unsupported RESP type inside array: "+ prefix);
+                    throw new IOException("Unsupported RESP type inside array: " + prefix);
             }
         }
 
         return elements;
     }
+
 }
